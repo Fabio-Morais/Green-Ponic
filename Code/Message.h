@@ -54,6 +54,7 @@ typedef struct{
     char **ActuadorName;
     unsigned int countActuador;
     unsigned int *ActuadorOnOff;// 1 se tiver on, 0 se tiver off. Segue o mesmo indice que actuadorName
+    unsigned int *PreActuadorOnOff; //estado anterior
     char *placeName;
 } Sensores;
 
@@ -63,6 +64,8 @@ typedef struct{
     unsigned int maxMots;
     Regra regra[50];
     int compRegra;
+    int first;
+
 } Room;
 
 /*return do BIT1*/

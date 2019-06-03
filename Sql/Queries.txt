@@ -1,0 +1,157 @@
+*************MODO EASY:*************
+---------------------------------------------------------
+MOte
+----------
+SET search_path TO estufa;
+
+SELECT tempo AS timestamp, valor AS measurement
+FROM medi_sensor 
+    JOIN sensor ON medi_sensor.sensor_nome= sensor.nome 
+	JOIN mote ON num_mot=mot_id 
+	JOIN divisao ON divisao_id=id_div 
+WHERE (tempo>'2019-05-22' AND tempo<'2019-05-24' AND sensor_nome='temp2' AND divisao.nome='ALFACES')
+ORDER BY timestamp ;
+
+
+
+---------------------------------------------------------
+actuador
+----------
+SET search_path TO estufa;
+
+SELECT medi_atuador.atuador_nome AS "Actuador", divisao.nome AS "Room", medi_atuador.on_off AS "State"
+FROM medi_atuador
+	JOIN atuador ON atuador.nome= medi_atuador.atuador_nome
+	JOIN divisao ON divisao.id_div = atuador.divisao_id
+WHERE id_ma IN (SELECT MAX(id_ma) 
+				FROM estufa.medi_atuador 
+				GROUP BY atuador_nome)
+ORDER BY divisao.id_div ASC;
+
+
+
+---------------------------------------------------------
+Configuration
+----------
+SET search_path TO estufa;
+
+UPDATE mote
+SET    divisao_id = mote_old.divisao_id
+FROM   mote mote_old
+   JOIN sensor ON sensor.mot_id = mote_old.num_mot
+WHERE (mote.num_mot, mote_old.num_mot) IN ((1,2), (2,1))
+RETURNING  (SELECT nome FROM sensor WHERE mot_id=mote_old.num_mot AND nome LIKE 'temp%') AS "Sensor Antigo", 
+			mote_old.num_mot AS "Num. Mote Antigo", 
+			(SELECT nome FROM divisao WHERE id_div=mote_old.divisao_id) AS "Room Antigo",
+			(SELECT nome FROM sensor WHERE mot_id=mote.num_mot AND nome LIKE 'temp%') AS "Sensor", 
+			mote.num_mot AS "Num. Mote",
+			(SELECT nome FROM divisao WHERE id_div=mote.divisao_id) AS "Room" 
+
+/*COLOCA MOTS NO SITIO*/
+UPDATE mote
+SET    divisao_id = mote_old.divisao_id
+FROM   mote mote_old
+   JOIN sensor ON sensor.mot_id = mote_old.num_mot
+WHERE (mote.divisao_id, mote_old.divisao_id) IN ((1,2), (2,1))
+
+
+
+---------------------------------------------------------
+control rule
+----------
+UPDATE estufa.regra_geral SET valor=14
+ WHERE sensor_nome='hum2'
+RETURNING  regra_id AS "Rule", 
+		   (SELECT nome FROM estufa.divisao WHERE id_div=(SELECT divisao_id 
+														  FROM estufa.atuador 
+														  WHERE nome=atuador_nome)
+			)AS "Room",
+		   valor AS "Reference Value" ,
+		   sensor_nome AS "Sensor"
+
+
+
+---------------------------------------------------------
+Energia
+----------
+
+SET search_path TO estufa;
+
+SELECT (medi_sensor.valor/3600) *220*1 AS energy, tempo AS timestamp
+FROM medi_sensor
+	JOIN sensor ON medi_sensor.sensor_nome = sensor.nome
+    JOIN mote ON num_mot=mot_id 
+    JOIN divisao ON divisao_id=id_div
+WHERE medi_sensor.sensor_nome LIKE 'corrente%' AND divisao.nome='MORANGOS' AND tempo>'2019-05-22' AND tempo<'2019-05-24'
+ORDER BY tempo ASC
+
+
+
+
+
+*************MODO MEDIUM.************
+---------------------------------------------------------
+MOte
+----------
+SET search_path TO estufa;
+
+SELECT AVG(medi_sensor.valor) AS average, divisao.nome AS room 
+FROM medi_sensor 
+    JOIN sensor ON medi_sensor.sensor_nome = sensor.nome
+    JOIN mote ON num_mot=mot_id 
+    JOIN divisao ON divisao_id=id_div
+WHERE medi_sensor.sensor_nome LIKE 'temp%' AND tempo>'2019-05-22' AND tempo<'2019-05-24'
+GROUP BY divisao.nome
+
+---------------------------------------------------------
+Actuador
+----------
+
+
+SELECT COUNT(divisao.nome) AS change, divisao.nome AS room
+FROM estufa.medi_atuador AS a
+	JOIN estufa.atuador ON atuador.nome= a.atuador_nome
+	JOIN estufa.divisao ON divisao.id_div = atuador.divisao_id
+WHERE atuador_nome LIKE 'FAN%' AND tempo>'2019-05-22' AND tempo<'2019-05-24' AND a.on_off<>
+      ( SELECT b.on_off
+        FROM estufa.medi_atuador AS b
+        WHERE a.atuador_nome= b.atuador_nome
+          AND a.tempo> b.tempo
+        ORDER BY b.tempo DESC
+        LIMIT 1
+      )
+GROUP BY divisao.nome
+
+
+---------------------------------------------------------
+Configuration Dataa
+----------
+SET search_path TO estufa;
+
+SELECT divisao.nome AS "Room", COUNT(DISTINCT sensor.mot_id) AS "Mote Count", COUNT(sensor.nome) AS "Sensor Count"
+FROM estufa.sensor
+	JOIN estufa.mote ON num_mot=mot_id 
+	JOIN estufa.divisao ON divisao_id=id_div
+GROUP BY divisao.nome
+---------------------------------------------------------
+RULE
+----------
+SELECT COUNT(divisao.nome) AS rules, divisao.nome AS room
+FROM estufa.regra_geral 
+	JOIN estufa.sensor ON estufa.regra_geral.sensor_nome= estufa.sensor.nome 
+	JOIN estufa.mote ON num_mot=mot_id 
+	JOIN estufa.divisao ON divisao_id=id_div 
+GROUP BY divisao.nome
+
+---------------------------------------------------------
+Energia
+----------
+SET search_path TO estufa;
+
+SELECT SUM((medi_sensor.valor/3600) *220*1*0.1544) AS cost, divisao.nome AS room
+FROM medi_sensor
+    JOIN sensor ON medi_sensor.sensor_nome = sensor.nome
+    JOIN mote ON num_mot=mot_id 
+    JOIN divisao ON divisao_id=id_div
+WHERE medi_sensor.sensor_nome LIKE 'corrente%' AND tempo>'2019-05-22' AND tempo<'2019-05-24'
+GROUP BY divisao.nome

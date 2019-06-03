@@ -87,9 +87,9 @@ sleep(1.5);
 }
 
 int controlo(vetor *vec,  Room *room, PGconn *conn, Mensagem *mensagem){
+    
      if(!numOperacoes){
-        if(leFicheiroRules(vec,room)==-1)
-            return -1;
+        room->first=1;
         numOperacoes++;
         insereRegra(conn, room);
         
@@ -99,6 +99,8 @@ int controlo(vetor *vec,  Room *room, PGconn *conn, Mensagem *mensagem){
     
     }*/
     }
+    if(leFicheiroRules(vec,room)==-1)
+            return -1;
     insereMedicoes(conn,room,mensagem);
     return 1;
 }

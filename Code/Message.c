@@ -39,7 +39,7 @@ int leFicheiroRules(vetor *vec, Room *room)
         }
 
     }
-
+     room->first=0;
     fclose(SensorRules);
 
     return 1;
@@ -399,9 +399,10 @@ int rulesAtuadores(Room *room, char *str, int *bit0, int *posRoom)
             }
             else if(count==1)
             {
-
-                strcpy(room->regra[room->compRegra].acao,token2);
-                room->compRegra++;
+                if(room->first){
+                    strcpy(room->regra[room->compRegra].acao,token2);
+                    room->compRegra++;
+                }
                 if(!strcmp(token2,"OFF") && (*bit0))
                 {
                     room->roomName[*posRoom].ActuadorOnOff[indice] = 0;
@@ -767,11 +768,13 @@ void toActuador(Room *room, vetor *vec)
         room->roomName[i].ActuadorName= malloc(vec->elementos[i].ActuadorCount * sizeof(char*));
         room->roomName[i].countActuador=vec->elementos[i].ActuadorCount;
         room->roomName[i].ActuadorOnOff = malloc(room->roomName[i].countActuador *sizeof(int*));
+        room->roomName[i].PreActuadorOnOff = malloc(room->roomName[i].countActuador *sizeof(int*));
         for(int j=0; j< vec->elementos[i].ActuadorCount; j++)
         {
             room->roomName[i].ActuadorName[j]=malloc((strlen(vec->elementos[i].ActuadorName[j])+1)* sizeof(char));
             strcpy(room->roomName[i].ActuadorName[j], vec->elementos[i].ActuadorName[j]);
             room->roomName[i].ActuadorOnOff[j]=0;
+            room->roomName[i].PreActuadorOnOff[j]=5;
         }
     }
 }

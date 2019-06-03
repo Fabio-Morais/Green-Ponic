@@ -11,11 +11,11 @@ int enviaMedicoesSensores (PGconn *conn, char *sensor, int mot, float values){
 	char query[250];
 	char newSensor[150];
 	sprintf(newSensor, "%s%d",sensor, mot);
-	sprintf(query ,"INSERT INTO medi_sensor (valor, sensor_nome, tempo) VALUES (%f, '%s', (SELECT localtimestamp(0)))",
+	sprintf(query ,"INSERT INTO medi_sensor (valor, sensor_nome, tempo) VALUES (%f, '%s', (SELECT LOCALTIME(0)))",
 															values, newSensor );
 	PGresult *res = PQexec(conn, query);
 
-	//printf("\n\nMEDI SENSOR->%d",  PQresultStatus(res) == PGRES_COMMAND_OK);
+	printf("\n\nMEDI SENSOR->%d",  PQresultStatus(res) == PGRES_COMMAND_OK);
 }
 
 /*MEDIÇOES ATUADORES*/
@@ -23,11 +23,11 @@ int enviaMedicoesAtuadores (PGconn *conn,char *atuador, char *roomName, char* es
 	char query[250];
 	char newAtuador[150];
 	sprintf(newAtuador, "%s_%s",atuador, roomName);
-	sprintf(query ,"INSERT INTO medi_atuador (on_off, atuador_nome, tempo) VALUES ('%s','%s' ,(SELECT localtimestamp(0)))", 
+	sprintf(query ,"INSERT INTO medi_atuador (on_off, atuador_nome, tempo) VALUES ('%s','%s' ,(SELECT LOCALTIME(0)))", 
 															estado, newAtuador);
 	PGresult *res = PQexec(conn, query);
 
-	//printf("\n\nMED.ATU->%d",  PQresultStatus(res) == PGRES_COMMAND_OK);
+	printf("\n\nMED.ATU->%d",  PQresultStatus(res) == PGRES_COMMAND_OK);
 }
 
 
@@ -36,7 +36,7 @@ int enviaDivisao(PGconn *conn,char *nomeDivisao, int indice,unsigned int num_mot
 	char query[250];
 	sprintf(query ,"INSERT INTO divisao (nome, indice, num_mots) VALUES ('%s', %d, %d)", nomeDivisao, indice, num_mots);
 	PGresult *res = PQexec(conn, query);
-	//printf("\n\nDIVISAO->%d",  PQresultStatus(res) == PGRES_COMMAND_OK);
+	printf("\n\nDIVISAO->%d",  PQresultStatus(res) == PGRES_COMMAND_OK);
 }
 
 /**MOTE**/
@@ -44,7 +44,7 @@ int enviaMote(PGconn *conn, int num_mot, char *nomeDivisao, int indiceDivisao){
 	char query[250];
 	sprintf(query ,"INSERT INTO mote (num_mot, divisao_id) VALUES (%d, (SELECT id_div FROM divisao WHERE (nome = '%s' AND indice=%d) LIMIT 1))", num_mot, nomeDivisao, indiceDivisao);
 	PGresult *res = PQexec(conn, query);
-	//printf("\n\n\nMOTE->%d",  PQresultStatus(res) == PGRES_COMMAND_OK);
+	printf("\n\n\nMOTE->%d",  PQresultStatus(res) == PGRES_COMMAND_OK);
 }
 
 /**SENSOR**/
@@ -55,7 +55,7 @@ int enviaSensor(PGconn *conn, char *nomeSensor, int num_mot){
 	sprintf(query ,"INSERT INTO sensor (nome, mot_id) VALUES ('%s', (SELECT num_mot FROM mote WHERE num_mot=%d LIMIT 1) )", 
 		newSensor, num_mot);
 	PGresult *res = PQexec(conn, query);
-	//printf("\n\n\nSENSOR->%d",  PQresultStatus(res) == PGRES_COMMAND_OK);
+	printf("\n\n\nSENSOR->%d",  PQresultStatus(res) == PGRES_COMMAND_OK);
 }
 
 /**ATUADOR**/
@@ -66,14 +66,14 @@ int enviaAtuador(PGconn *conn, char *nomeAtuador, char *nomeDivisao, int indiceD
 	sprintf(query ,"INSERT INTO atuador (nome, divisao_id) VALUES ('%s', (SELECT id_div FROM divisao WHERE (nome = '%s' AND indice=%d) LIMIT 1))",
 	 newAtuador, nomeDivisao, indiceDivisao);
 	PGresult *res = PQexec(conn, query);
-	//printf("\n\n\nATUADOR->%d",  PQresultStatus(res) == PGRES_COMMAND_OK);
+	printf("\n\n\nATUADOR->%d",  PQresultStatus(res) == PGRES_COMMAND_OK);
 }
 
 int enviaRegra(PGconn *conn,int linha){
 	char query[250];
 	sprintf(query ,"INSERT INTO regra (linha_regra) VALUES (%d)", linha);
 	PGresult *res = PQexec(conn, query);
-	//printf("\n\n\nREGRA->%d",  PQresultStatus(res) == PGRES_COMMAND_OK);
+	printf("\n\n\nREGRA->%d",  PQresultStatus(res) == PGRES_COMMAND_OK);
 
 }
 
@@ -88,7 +88,7 @@ int enviaRegraGeral(PGconn *conn, int linha, char *nomeSensor,int num_mot, char 
 	sprintf(query ,"INSERT INTO regra_geral (regra_id, sensor_nome, operador, valor,atuador_nome, acao) VALUES ((SELECT id_regra FROM regra WHERE linha_regra=%d),'%s','%s',%d, '%s' ,'%s')", 
 																						linha, newSensor, operador, valor, newAtuador, estadoAtuador);
 	PGresult *res = PQexec(conn, query);
-	//printf("\n\nREGRA GERAL->%d",  (PQresultStatus(res) == PGRES_COMMAND_OK));
+	printf("\n\nREGRA GERAL->%d",  (PQresultStatus(res) == PGRES_COMMAND_OK));
 
 }
 
@@ -110,28 +110,7 @@ PGconn* inicializaSql(){
 	PGresult *schema = PQexec(conn, "SET search_path TO estufa");
 	/*inicializa o time*/
 	PGresult *time = PQexec(conn, "SET TIME ZONE 'UTC-1'");
-
-	/*PGresult *drop = PQexec(conn,"DROP TABLE IF EXISTS estufa.divisao,estufa.atuador, estufa.mote, estufa.medi_atuador, estufa.regra, estufa.sensor, estufa.medi_sensor, estufa.regra_geral CASCADE");
-	
-	PGresult *divisao = PQexec(conn, "CREATE TABLE IF NOT EXISTS estufa.divisao(id_div SERIAL PRIMARY KEY,nome VARCHAR(256),indice INTEGER UNIQUE,num_mots INTEGER)");
-
-
-	PGresult *atua = PQexec(conn, "CREATE TABLE IF NOT EXISTS estufa.atuador(nome VARCHAR(256) PRIMARY KEY ,divisao_id INTEGER REFERENCES estufa.divisao(id_div) ON DELETE CASCADE  NOT NULL)");
-
-	PGresult *mot = PQexec(conn, "CREATE TABLE IF NOT EXISTS estufa.mote(num_mot INTEGER PRIMARY KEY,divisao_id INTEGER REFERENCES estufa.divisao(id_div) ON DELETE CASCADE NOT NULL)");
-
-	PGresult *medatua = PQexec(conn, "CREATE TABLE IF NOT EXISTS estufa.medi_atuador(id_ma SERIAL PRIMARY KEY,on_off VARCHAR(5),atuador_nome VARCHAR(256) REFERENCES estufa.atuador(nome) ON DELETE CASCADE NOT NULL,tempo TIMESTAMP(3))");
-
-	PGresult *regr = PQexec(conn, "CREATE TABLE IF NOT EXISTS estufa.regra(id_regra SERIAL PRIMARY KEY,linha_regra INTEGER UNIQUE)");
-
-
-	PGresult *sens = PQexec(conn, "CREATE TABLE IF NOT EXISTS estufa.sensor(nome VARCHAR(256) PRIMARY KEY ,mot_id INTEGER REFERENCES estufa.mote(num_mot) ON DELETE CASCADE NOT NULL)");
-
-	PGresult *medsens = PQexec(conn, "CREATE TABLE IF NOT EXISTS estufa.medi_sensor(id_ms SERIAL PRIMARY KEY,valor NUMERIC(10,2),sensor_nome VARCHAR(256) REFERENCES estufa.sensor(nome) ON DELETE CASCADE NOT NULL,tempo TIMESTAMP(3))");
-
-	PGresult *regragr = PQexec(conn, "CREATE TABLE IF NOT EXISTS estufa.regra_geral(regra_id INTEGER REFERENCES estufa.regra(id_regra) ON DELETE CASCADE NOT NULL,sensor_nome VARCHAR(256) REFERENCES estufa.sensor(nome) ON DELETE CASCADE NOT NULL,operador VARCHAR(2),valor INTEGER,atuador_nome VARCHAR(256) REFERENCES estufa.atuador(nome) ON DELETE CASCADE NOT NULL, acao VARCHAR(5),PRIMARY KEY (atuador_nome, sensor_nome, regra_id))");
-		*/
-		return conn;
+    return conn;
 }
 
 
@@ -188,7 +167,7 @@ int insereMedicoes (PGconn *conn, Room *room, Mensagem *mensagem){
 	char on_off[5];
 	int indiceDiv=mensagem->indiceDiv;
 	int mot= mensagem->motIndice;
-	//printf("\nmot: %d\n", mensagem->motNumber);
+	printf("\nmot: %d\n", mensagem->motNumber);
 	if(indiceRoomMotx(room, mensagem->motNumber)!=-1){
 		
 		for(int i=0; i<4; i++){
@@ -200,14 +179,10 @@ int insereMedicoes (PGconn *conn, Room *room, Mensagem *mensagem){
 				strcpy(on_off, "on");
 			else if(!room->roomName[indiceDiv].ActuadorOnOff[i])
 				strcpy(on_off, "off");
-				//printf("\nPRE->%d\tindice: %d-%d\nAtua->%d\n", room->roomName[indiceDiv].PreActuadorOnOff[i],indiceDiv,i, room->roomName[indiceDiv].ActuadorOnOff[i]);
-			if(room->roomName[indiceDiv].ActuadorOnOff[i] != room->roomName[indiceDiv].PreActuadorOnOff[i])
-				{
-					enviaMedicoesAtuadores(conn, room->roomName[indiceDiv].ActuadorName[i], room->roomName[indiceDiv].placeName, on_off);		
-					room->roomName[indiceDiv].PreActuadorOnOff[i]= room->roomName[indiceDiv].ActuadorOnOff[i];
-				}
+			enviaMedicoesAtuadores(conn, room->roomName[indiceDiv].ActuadorName[i], room->roomName[indiceDiv].placeName, on_off);		
+		
 		}
-		//printf("\n2");
+		printf("\n2");
 	}
 }
 

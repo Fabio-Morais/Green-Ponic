@@ -8,40 +8,48 @@ if(!isset($_POST['submit']))
 /*********************SENSORES**************************/
 $Qsensor;
 /*FACIL*/
-$Sensor_Mote=$_POST['sel1'];;
-$Divisao_Mote='MORANGOS';
-$Timestamp_Mote='2019-05-22 ';
-$Timestampf_Mote='2019-05-24 ';
-$QsensorE= "SET search_path TO estufa; SELECT tempo AS timestamp, valor AS measurement FROM medi_sensor JOIN sensor ON medi_sensor.sensor_nome= sensor.nome JOIN mote ON num_mot=mot_id JOIN divisao ON divisao_id=id_div WHERE (tempo>'".$Timestamp_Mote."' AND tempo<'".$Timestampf_Mote."'AND sensor_nome='".$Sensor_Mote."' AND divisao.nome='".$Divisao_Mote."');";
+$Sensor_Mote=$_POST['Sensor1E'];
+$Divisao_Mote=$_POST['Room1E'];
+$Timestamp_Mote=$_POST['TempoInicial1E'];
+$Timestamp_Mote=str_replace("T"," ", $Timestamp_Mote);
+$Timestampf_Mote=$_POST['TempoFinal1E'];
+$Timestampf_Mote=str_replace("T"," ", $Timestampf_Mote);
+$QsensorE= "SET search_path TO estufa; SELECT tempo AS timestamp, valor AS measurement FROM medi_sensor JOIN sensor ON medi_sensor.sensor_nome= sensor.nome JOIN mote ON num_mot=mot_id JOIN divisao ON divisao_id=id_div WHERE (tempo>'".$Timestamp_Mote."' AND tempo<'".$Timestampf_Mote."'AND sensor_nome='".$Sensor_Mote."' AND divisao.nome='".$Divisao_Mote."')ORDER BY timestamp ;";
 /*MEDIO*/
-$TipoSensor_Sensor='temp';
-$Timestamp_Sensor='2019-05-22';
-$QsensorM = "SET search_path TO estufa; SELECT AVG(medi_sensor.valor) AS average, divisao.nome AS room FROM medi_sensor JOIN sensor ON medi_sensor.sensor_nome = sensor.nome JOIN estufa.mote ON num_mot=mot_id JOIN estufa.divisao ON divisao_id=id_div WHERE medi_sensor.sensor_nome LIKE '".$TipoSensor_Sensor."%' AND tempo>'".$Timestamp_Sensor."' GROUP BY divisao.nome";
+$TipoSensor_Sensor=$_POST['Sensor1M'];
+$Timestamp_Sensor=$_POST['TempoInicial1M'];
+$Timestamp_Sensor=str_replace("T"," ", $Timestamp_Sensor);
+$Timestampf_Sensor=$_POST['TempoFinal1M'];
+$Timestampf_Sensor=str_replace("T"," ", $Timestampf_Sensor);
+$QsensorM = "SET search_path TO estufa; SELECT AVG(medi_sensor.valor) AS average, divisao.nome AS room FROM medi_sensor JOIN sensor ON medi_sensor.sensor_nome = sensor.nome JOIN estufa.mote ON num_mot=mot_id JOIN estufa.divisao ON divisao_id=id_div WHERE medi_sensor.sensor_nome LIKE '".$TipoSensor_Sensor."%' AND tempo>'".$Timestamp_Sensor."' AND tempo<'".$Timestampf_Sensor."' GROUP BY divisao.nome";
 
 /*********************ATUADORES**************************/
 $Qactuator;
 /*FACIL*/
 $QactuatorE="SET search_path TO estufa; SELECT medi_atuador.atuador_nome AS \"Actuador\", divisao.nome AS \"Room\", medi_atuador.on_off AS \"State\" FROM medi_atuador JOIN atuador ON atuador.nome= medi_atuador.atuador_nome JOIN divisao ON divisao.id_div = atuador.divisao_id WHERE id_ma IN (SELECT MAX(id_ma) FROM estufa.medi_atuador GROUP BY atuador_nome) ORDER BY divisao.id_div ASC;";
 /*MEDIO*/
-$TipoAtuador_Atuador='FAN';
-$Timestamp_Atuador='2019-05-22';
-$QactuatorM="SELECT COUNT(divisao.nome) AS change, divisao.nome AS room FROM estufa.medi_atuador AS a JOIN estufa.atuador ON atuador.nome= a.atuador_nome  JOIN estufa.divisao ON divisao.id_div = atuador.divisao_id WHERE atuador_nome LIKE 'FAN%' AND tempo>'2019-05-22' AND a.on_off<> ( SELECT b.on_off FROM estufa.medi_atuador AS b WHERE a.atuador_nome= b.atuador_nome AND a.tempo> b.tempo ORDER BY b.tempo DESC LIMIT 1) GROUP BY divisao.nome";
+$TipoAtuador_Atuador=$_POST['Actuador2M'];
+$Timestamp_Atuador=$_POST['TempoInicial2M'];
+$Timestamp_Atuador=str_replace("T"," ", $Timestamp_Atuador);
+$Timestampf_Atuador=$_POST['TempoFinal2M'];
+$Timestampf_Atuador=str_replace("T"," ", $Timestampf_Atuador);
+$QactuatorM="SELECT COUNT(divisao.nome) AS change, divisao.nome AS room FROM estufa.medi_atuador AS a JOIN estufa.atuador ON atuador.nome= a.atuador_nome  JOIN estufa.divisao ON divisao.id_div = atuador.divisao_id WHERE atuador_nome LIKE '".$TipoAtuador_Atuador."%' AND tempo>'".$Timestamp_Atuador."' AND tempo>'".$Timestampf_Atuador."' AND a.on_off<> ( SELECT b.on_off FROM estufa.medi_atuador AS b WHERE a.atuador_nome= b.atuador_nome AND a.tempo> b.tempo ORDER BY b.tempo DESC LIMIT 1) GROUP BY divisao.nome";
 
 /*********************CONFIGURAÇAO**************************/
 $Qconfig;
 /*FACIL*/
-$TipoSensor_Config='temp';
-$Mote1_Config=1;
-$Mote2_Config=2;
-$QconfigE="SET search_path TO estufa; UPDATE mote SET    divisao_id = mote_old.divisao_id FROM   mote mote_old JOIN sensor ON sensor.mot_id = mote_old.num_mot WHERE (mote.divisao_id, mote_old.divisao_id) IN ((".$Mote1_Config.",".$Mote2_Config."), (".$Mote2_Config.",".$Mote1_Config.")) RETURNING  (SELECT nome FROM sensor WHERE mot_id=mote_old.num_mot AND nome LIKE '".$TipoSensor_Config."%') AS \"Sensor Antigo\", mote_old.num_mot AS \"Num. Mote Antigo\", (SELECT nome FROM divisao WHERE id_div=mote_old.divisao_id) AS \"Room Antigo\",(SELECT nome FROM sensor WHERE mot_id=mote.num_mot AND nome LIKE 'temp%') AS \"Sensor\", mote.num_mot AS \"Num. Mote\",(SELECT nome FROM divisao WHERE id_div=mote.divisao_id) AS \"Room\" ";
+$TipoSensor_Config=$_POST['Sensor3E'];
+$Mote1_Config=$_POST['Mote13E'];
+$Mote2_Config=$_POST['Mote23E'];
+$QconfigE="SET search_path TO estufa; UPDATE mote SET    divisao_id = mote_old.divisao_id FROM   mote mote_old JOIN sensor ON sensor.mot_id = mote_old.num_mot WHERE (mote.divisao_id, mote_old.divisao_id) IN ((".$Mote1_Config.",".$Mote2_Config."), (".$Mote2_Config.",".$Mote1_Config.")) RETURNING  (SELECT nome FROM sensor WHERE mot_id=mote_old.num_mot AND nome LIKE '".$TipoSensor_Config."%') AS \"Sensor Antigo\", mote_old.num_mot AS \"Num. Mote Antigo\", (SELECT nome FROM divisao WHERE id_div=mote_old.divisao_id) AS \"Room Antigo\",(SELECT nome FROM sensor WHERE mot_id=mote.num_mot AND nome LIKE '".$TipoSensor_Config."%') AS \"Sensor\", mote.num_mot AS \"Num. Mote\",(SELECT nome FROM divisao WHERE id_div=mote.divisao_id) AS \"Room\" ";
 /*MEDIO*/
 $QconfigM="SET search_path TO estufa; SELECT divisao.nome AS \"Room\", COUNT(DISTINCT sensor.mot_id) AS \"Mote Count\", COUNT(sensor.nome) AS \"Sensor Count\" FROM estufa.sensor JOIN estufa.mote ON num_mot=mot_id JOIN estufa.divisao ON divisao_id=id_div GROUP BY divisao.nome";
 
 /*********************RULES**************************/
 $Qrule;
 /*FACIL*/
-$Valor_rule=14;
-$Sensor_rule='hum2';
+$Valor_rule=$_POST['Valor4E'];
+$Sensor_rule=$_POST['Sensor4E'];
 $QruleE="UPDATE estufa.regra_geral SET valor=".$Valor_rule."WHERE sensor_nome='".$Sensor_rule."' RETURNING  regra_id AS \"Rule\", (SELECT nome FROM estufa.divisao WHERE id_div=(SELECT divisao_id FROM estufa.atuador WHERE nome=atuador_nome ))AS \"Room\", valor AS \"Reference Value\" ,sensor_nome AS \"Sensor\"";
 /*MEDIO*/
 $QruleM="SELECT COUNT(divisao.nome) AS rules, divisao.nome AS room FROM estufa.regra_geral JOIN estufa.sensor ON estufa.regra_geral.sensor_nome= estufa.sensor.nome JOIN estufa.mote ON num_mot=mot_id JOIN estufa.divisao ON divisao_id=id_div GROUP BY divisao.nome";
@@ -49,13 +57,17 @@ $QruleM="SELECT COUNT(divisao.nome) AS rules, divisao.nome AS room FROM estufa.r
 /*********************ENERGIA**************************/
 $Qenergy; // KWS
 /*FACIL*/
-$Room_Energy="MORANGOS";
-$TimestampInicialE_Energy="2019-05-22";
-$TimestampFinalE_Energy="2019-05-24";
+$Room_Energy=$_POST['Room5E'];
+$TimestampInicialE_Energy=$_POST['TempoInicial5E'];
+$TimestampInicialE_Energy=str_replace("T"," ", $TimestampInicialE_Energy);
+$TimestampFinalE_Energy=$_POST['TempoFinal5E'];
+$TimestampFinalE_Energy=str_replace("T"," ", $TimestampFinalE_Energy);
 $QenergyE = "SET search_path TO estufa; SELECT (medi_sensor.valor/3600) *220*1 AS energy, tempo AS timestamp FROM medi_sensor JOIN sensor ON medi_sensor.sensor_nome = sensor.nome JOIN mote ON num_mot=mot_id JOIN divisao ON divisao_id=id_div WHERE medi_sensor.sensor_nome LIKE 'corrente%' AND divisao.nome='".$Room_Energy."' AND tempo>'".$TimestampInicialE_Energy."' AND tempo<'".$TimestampFinalE_Energy."' ORDER BY tempo ASC";
 /*MEDIO*/
-$TimestampInicialM_Energy="2019-05-22";
-$TimestampFinalM_Energy="2019-05-24";
+$TimestampInicialM_Energy=$_POST['TempoInicial5M'];
+$TimestampInicialM_Energy=str_replace("T"," ", $TimestampInicialM_Energy);
+$TimestampFinalM_Energy=$_POST['TempoFinal5M'];
+$TimestampFinalM_Energy=str_replace("T"," ", $TimestampFinalM_Energy);
 $QenergyM = "SET search_path TO estufa; SELECT SUM((medi_sensor.valor/3600) *220*1*0.1544) AS cost, divisao.nome AS room FROM medi_sensor JOIN sensor ON medi_sensor.sensor_nome = sensor.nome JOIN mote ON num_mot=mot_id JOIN divisao ON divisao_id=id_div WHERE medi_sensor.sensor_nome LIKE 'corrente%' AND tempo>'".$TimestampInicialM_Energy."' AND tempo<'".$TimestampFinalM_Energy."' GROUP BY divisao.nome";
 
 
@@ -477,8 +489,8 @@ if(!empty($Qenergy)){
 
 }
 
-
-pg_exec($link, $Qother);
+if($QComplexity=='Easy')
+	pg_exec($link, $Qother);
 
 $Qother="SET search_path TO estufa; SELECT nome AS \"Nome Divisão\" FROM divisao";
 //Other Queries **************************************************************************************
@@ -595,7 +607,21 @@ if(!empty($Qother2)){
     	  <meta name="description" content="">
 		    <meta name="keywords" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+		<style>
 		
+hr.style2 {
+	border-top: 8px solid  #8c8b8b;
+	
+	max-width: 80%;
+	 margin: 0px;
+	margin-left:15% !important; margin-right:15% !important;
+}
+
+.zoom:hover {
+
+  zoom: 130%;
+}
+		</style>
         <link href='http://fonts.googleapis.com/css?family=Open+Sans:400,300,600,700,800' rel='stylesheet' type='text/css'>
         <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
         <link rel="stylesheet" href="css/bootstrap.min.css">
@@ -605,31 +631,26 @@ if(!empty($Qother2)){
         <link rel="stylesheet" href="css/templatemo_style.css">
 
         <script src="js/vendor/modernizr-2.6.1-respond-1.1.0.min.js"></script>
-		    <script language="JavaScript" src="js/gen_validatorv31.js" type="text/javascript"></script>
-				<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+		<script language="JavaScript" src="js/gen_validatorv31.js" type="text/javascript"></script>
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
 
     </head>
-    <body>
+    <body  >
 
         <div class="site-main" id="sTop">
             <div class="site-header">
-                <div class="container">
-                    <div class="row">
-                        <div class="col-md-12 text-center">
-                        </div> <!-- /.col-md-12 -->
-                    </div> <!-- /.row -->
-                </div> <!-- /.container -->
-                <div class="main-header">
+                
+                <div class="main-header  navbar-fixed-top">
                     <div class="container">
                         <div id="menu-wrapper">
                             <div class="row">
                                 <div class="logo-wrapper col-md-4 col-sm-2 col-xs-8">
                                     <h1>
-                                        <a href="index.html">Hydroponic greenhouse</a>
+                                        <a href="index.html" >Hydroponic greenhouse</a>
                                     </h1>
                                 </div> <!-- /.logo-wrapper -->
-                                <div class="col-md-8 col-sm-10 col-xs-4 main-menu text-right">
-                                    <ul class="menu-first hidden-sm hidden-xs">
+                                <div class="col-md-8 col-sm-10 col-xs-4 main-menu text-right ">
+                                    <ul class="menu-first hidden-sm hidden-xs ">
                                         <li><a href="#sensor">Mote</a></li>
                                         <li><a href="#actuators">Actuators</a></li>
                                         <li><a href="#config">Configurations</a></li>
@@ -654,7 +675,7 @@ if(!empty($Qother2)){
                     </div> <!-- /.container -->
                 </div> <!-- /.main-header -->
             </div> <!-- /.site-header -->
-            <div class="site-slider">
+            <div class="site-slider ">
                 <div class="slider">
                     <div class="flexslider">
                         <ul class="slides">
@@ -669,6 +690,7 @@ if(!empty($Qother2)){
             </div> <!-- /.site-slider -->
         </div> <!-- /.site-main -->
 		
+		<!-- ****************SENSOR*********** -->
         <div class="content-section" id="sensor"> <!-- start sensor content section -->
             <div class="container">
                 <div class="row">
@@ -677,6 +699,7 @@ if(!empty($Qother2)){
                         <p>View Sensor Readings History</p>
                     </div> <!-- /.heading-section -->
 					<div class="panel-group" id="accordion">
+					<?php if ($QComplexity == "Easy") { ?>
 					  <div class="panel panel-default">
 						<div class="panel-heading">
 						  <h4 class="panel-title text-center ">
@@ -685,19 +708,21 @@ if(!empty($Qother2)){
 						  </h4>
 						</div>
 						<div id="Mote1" class="panel-collapse collapse ">
-						    <div class="panel-body"><pre>SET search_path TO estufa;
+						    <div class="panel-body zoom"><pre ><code style="color:#ff5050">SET</code> search_path <code style="color:#ff5050">TO</code> estufa;
 
-SELECT tempo AS timestamp, valor AS measurement
-FROM medi_sensor 
-    JOIN sensor ON medi_sensor.sensor_nome= sensor.nome 
-	JOIN mote ON num_mot=mot_id 
-	JOIN divisao ON divisao_id=id_div 
-WHERE (tempo>'2019-05-21' AND sensor_nome='temp2' AND divisao.nome='ALFACES')
+<code style="color:#ff5050">SELECT</code> tempo <code style="color:#ff5050">AS</code> timestamp, valor <code style="color:#ff5050">AS</code> measurement
+<code style="color:#ff5050">FROM</code> medi_sensor 
+    <code style="color:#ff5050">JOIN</code> sensor <code style="color:#ff5050">ON</code> medi_sensor.sensor_nome= sensor.nome 
+    <code style="color:#ff5050">JOIN</code> mote <code style="color:#ff5050">ON</code> num_mot=mot_id 
+    <code style="color:#ff5050">JOIN</code> divisao <code style="color:#ff5050">ON</code> divisao_id=id_div 
+<code style="color:#ff5050">WHERE</code> (tempo>'<code style="color:#009933"><?echo $Timestamp_Mote?></code>' <code style="color:#ff5050">AND</code> tempo<'<code style="color:#009933"><?echo $Timestampf_Mote?></code>' <code style="color:#ff5050">AND</code> sensor_nome='<code style="color:#009933"><?echo $Sensor_Mote?></code>' <code style="color:#ff5050">AND</code> divisao.nome='<code style="color:#009933"><?echo $Divisao_Mote?></code>')
+<code style="color:#ff5050">ORDER BY</code> timestamp ;
 </pre>
 						
 							</div>
 						</div>
 					  </div>
+					  <?php } else { ?>
 					  <div class="panel panel-default">
 						<div class="panel-heading ">
 						  <h4 class="panel-title text-center ">
@@ -706,17 +731,18 @@ WHERE (tempo>'2019-05-21' AND sensor_nome='temp2' AND divisao.nome='ALFACES')
 						  </h4>
 						</div>
 						<div id="Mote2" class="panel-collapse collapse">
-						  <div class="panel-body"><pre>SET search_path TO estufa;
-						  
-SELECT AVG(medi_sensor.valor) AS average, divisao.nome AS room 
-FROM medi_sensor 
-    JOIN sensor ON medi_sensor.sensor_nome = sensor.nome
-    JOIN estufa.mote ON num_mot=mot_id 
-    JOIN estufa.divisao ON divisao_id=id_div
-GROUP BY divisao.nome</pre></div>
+						  <div class="panel-body zoom"><pre><code style="color:#ff5050">SET</code> search_path <code style="color:#ff5050">TO</code> estufa;
+
+<code style="color:#ff5050">SELECT AVG</code>(medi_sensor.valor) <code style="color:#ff5050">AS</code> average, divisao.nome <code style="color:#ff5050">AS</code> room 
+<code style="color:#ff5050">FROM</code> medi_sensor 
+     <code style="color:#ff5050">JOIN</code> sensor <code style="color:#ff5050">ON</code> medi_sensor.sensor_nome = sensor.nome
+     <code style="color:#ff5050">JOIN</code> mote <code style="color:#ff5050">ON</code> num_mot=mot_id 
+     <code style="color:#ff5050">JOIN</code> divisao <code style="color:#ff5050">ON</code> divisao_id=id_div
+<code style="color:#ff5050">WHERE</code> medi_sensor.sensor_nome <code style="color:#ff5050">LIKE</code> '<code style="color:#009933"><? echo $TipoSensor_Sensor?>%</code>' <code style="color:#ff5050">AND</code> tempo>'<code style="color:#009933"><? echo $Timestamp_Sensor?></code>' <code style="color:#ff5050">AND</code> tempo<'<code style="color:#009933"><? echo $Timestampf_Sensor?></code>'
+<code style="color:#ff5050">GROUP BY</code> divisao.nome</pre></div>
 						</div>
 					  </div>
-					 
+					 <? } ?>
 					</div>
 					
                 </div> <!-- /.row -->
@@ -730,9 +756,9 @@ GROUP BY divisao.nome</pre></div>
 				  <p>Results: <?php echo $print_tableS; ?></p>
 				</div><!-- /.row -->
 				<p style="font-size: 20px;"><?php if($QComplexity=='Easy') {
-													echo '<b> <u>Sensor</u>: </b> '.$Sensor_Mote.'<br><b> <u>Room</u>:</b> '.$Divisao_Mote."<br><b> <u>Timestamp</u>:</b> ".$Timestamp_Mote." ------- ".$Timestampf_Mote;
+													echo '<b> <u>Sensor</u>: </b> '.$Sensor_Mote.'<br><b> <u>Room</u>:</b> '.$Divisao_Mote."<br><b> <u>Timestamp</u>:</b> ".$Timestamp_Mote." <strong>&nbsp;&nbsp;&nbsp;TO&nbsp;&nbsp;&nbsp;</strong> ".$Timestampf_Mote;
 				}else if($QComplexity=='Medium') {
-				echo '<b> <u>Sensor Type</u>: </b> '.$TipoSensor_Sensor.'<br><b>  <u>Timestamp</u>:</b>  > '.$Timestamp_Sensor;}
+				echo '<b> <u>Sensor Type</u>: </b> '.$TipoSensor_Sensor.'<br><b>  <u>Timestamp</u>:</b>'.$Timestamp_Sensor. " <strong>&nbsp;&nbsp;&nbsp;TO&nbsp;&nbsp;&nbsp;</strong> ". $Timestampf_Sensor;}
 				?></p>
 				<div class="row">
 					<div id="Seasy">
@@ -743,7 +769,7 @@ GROUP BY divisao.nome</pre></div>
 					</div>
 					<div id="Shard">
 						<div class="w3-container">
-                        <table class="w3-table-all w3-centered">
+                        <table class="w3-table-all w3-centered ">
                         <?php echo $print_tableS; ?>
                         </table>
                     	</div>
@@ -753,17 +779,21 @@ GROUP BY divisao.nome</pre></div>
         	</div> <!-- /.container -->
 			
         </div> <!-- /#sensor -->
-
+	<div class="content-section">
+		<hr class="style2" >
+	</div>
 	
-
+			<!-- ****************ATUADOR*********** -->
         <div class="content-section" id="actuators"> <!-- start actuators content section -->
+		
             <div class="container">
                 <div class="row">
                     <div class="heading-section col-md-12 text-center">
 						<h2>Actuators</h2>
                         <p>Monitor State of Actuators</p>
                     </div> <!-- /.heading-section -->
-										<div class="panel-group" id="accordion">
+					<div class="panel-group" id="accordion">
+					<?php if ($QComplexity == "Easy") { ?>
 					  <div class="panel panel-default">
 						<div class="panel-heading">
 						  <h4 class="panel-title text-center ">
@@ -772,19 +802,22 @@ GROUP BY divisao.nome</pre></div>
 						  </h4>
 						</div>
 						<div id="Actuators1" class="panel-collapse collapse ">
-						    <div class="panel-body"><pre>SET search_path TO estufa;
-							
-SELECT medi_atuador.atuador_nome AS "Actuador", divisao.nome AS "Room", medi_atuador.on_off AS "State"
-FROM medi_atuador
-	JOIN atuador ON atuador.nome= medi_atuador.atuador_nome
-	JOIN divisao ON divisao.id_div = atuador.divisao_id
-WHERE id_ma IN (SELECT MAX(id_ma) FROM estufa.medi_atuador GROUP BY atuador_nome)
-ORDER BY divisao.id_div ASC;
+						    <div class="panel-body zoom"><pre><code style="color:#ff5050">SET</code> search_path <code style="color:#ff5050">TO</code> estufa;
+
+<code style="color:#ff5050">SELECT</code> medi_atuador.atuador_nome <code style="color:#ff5050">AS</code> "<code style="color:#009933">Actuador</code>", divisao.nome <code style="color:#ff5050">AS</code> "<code style="color:#009933">Room</code>", medi_atuador.on_off <code style="color:#ff5050">AS</code> "<code style="color:#009933">State</code>"
+<code style="color:#ff5050">FROM</code> medi_atuador
+     <code style="color:#ff5050">JOIN</code> atuador <code style="color:#ff5050">ON</code> atuador.nome= medi_atuador.atuador_nome
+     <code style="color:#ff5050">JOIN</code> divisao <code style="color:#ff5050">ON</code> divisao.id_div = atuador.divisao_id
+<code style="color:#ff5050">WHERE</code> id_ma IN (<code style="color:#ff5050">SELECT</code> <code style="color:#ff5050">MAX</code>(id_ma) 
+		<code style="color:#ff5050">FROM</code> estufa.medi_atuador 
+		<code style="color:#ff5050">GROUP BY</code> atuador_nome)
+<code style="color:#ff5050">ORDER BY</code> divisao.id_div <code style="color:#ff5050">ASC</code>;
 </pre>
 						
 							</div>
 						</div>
 					  </div>
+					  <?php } else { ?>
 					  <div class="panel panel-default">
 						<div class="panel-heading ">
 						  <h4 class="panel-title text-center ">
@@ -793,27 +826,26 @@ ORDER BY divisao.id_div ASC;
 						  </h4>
 						</div>
 						<div id="Actuators2" class="panel-collapse collapse">
-						  <div class="panel-body"><pre>SELECT COUNT(divisao.nome) AS change, divisao.nome AS room
-FROM estufa.medi_atuador AS a
-	JOIN estufa.atuador ON atuador.nome= a.atuador_nome
-	JOIN estufa.divisao ON divisao.id_div = atuador.divisao_id
-WHERE a.on_off<>
-      ( SELECT b.on_off
-        FROM estufa.medi_atuador AS b
-        WHERE a.atuador_nome= b.atuador_nome
-          AND a.tempo> b.tempo
-        ORDER BY b.tempo DESC
-        LIMIT 1
+						  <div class="panel-body zoom"><pre><code style="color:#ff5050">SELECT COUNT</code>(divisao.nome) <code style="color:#ff5050">AS</code> change, divisao.nome <code style="color:#ff5050">AS</code> room
+<code style="color:#ff5050">FROM</code> estufa.medi_atuador <code style="color:#ff5050">AS</code> a
+	<code style="color:#ff5050">JOIN</code> estufa.atuador <code style="color:#ff5050">ON</code> atuador.nome= a.atuador_nome
+	<code style="color:#ff5050">JOIN</code> estufa.divisao <code style="color:#ff5050">ON</code> divisao.id_div = atuador.divisao_id
+<code style="color:#ff5050">WHERE</code> atuador_nome <code style="color:#ff5050">LIKE</code> '<code style="color:#009933"><? echo $TipoAtuador_Atuador ?>%</code>' <code style="color:#ff5050">AND</code> tempo>'<code style="color:#009933"><? echo $Timestamp_Atuador ?></code>' <code style="color:#ff5050">AND</code> tempo<'<code style="color:#009933"><? echo $Timestampf_Atuador ?></code>' <code style="color:#ff5050">AND</code> a.on_off<>
+      ( <code style="color:#ff5050">SELECT</code> b.on_off
+        <code style="color:#ff5050">FROM</code> estufa.medi_atuador <code style="color:#ff5050">AS</code> b
+        <code style="color:#ff5050">WHERE</code> a.atuador_nome= b.atuador_nome <code style="color:#ff5050">AND</code> a.tempo> b.tempo
+        <code style="color:#ff5050">ORDER BY</code> b.tempo DESC
+        <code style="color:#ff5050">LIMIT</code> 1
       )
-GROUP BY divisao.nome</pre></div>
+<code style="color:#ff5050">GROUP BY</code> divisao.nome</pre></div>
 						</div>
 					  </div>
-					 
+					 <? } ?>
 					</div>
                 </div> <!-- /.row -->
 				<br><br><br>
 				<p style="font-size: 20px;"><?php if($QComplexity=='Medium') {
-				echo '<b> <u>Actuator Type</u>: </b> '.$TipoAtuador_Atuador.'<br><b>  <u>Timestamp</u>:</b>  > '.$Timestamp_Atuador;}
+				echo '<b> <u>Actuator Type</u>: </b> '.$TipoAtuador_Atuador.'<br><b>  <u>Timestamp</u>:</b>'.$Timestamp_Atuador. " <strong>&nbsp;&nbsp;&nbsp;TO&nbsp;&nbsp;&nbsp;</strong> ".$Timestampf_Atuador ;}
 				?></p>
 				<div class="row" id="Ade_bug">
                  <p>Connection to DB: <?php echo $print_connect; ?></p>
@@ -845,7 +877,10 @@ GROUP BY divisao.nome</pre></div>
 				</div><!-- /.row -->
             </div> <!-- /.container -->
         </div> <!-- /#actuator-->
-
+	<div class="content-section">
+		<hr class="style2" >
+	</div>
+			<!-- ****************CONFIGURATION*********** -->
         <div class="content-section" id="config"> <!-- start config content section -->
             <div class="container">
                 <div class="row">
@@ -854,6 +889,7 @@ GROUP BY divisao.nome</pre></div>
                         <p>View and Edit <b><i>HAS</i></b> Configurations</p>
                     </div> <!-- /.heading-section -->
 					<div class="panel-group" id="accordion">
+					<?php if ($QComplexity == "Easy") { ?>
 					  <div class="panel panel-default">
 						<div class="panel-heading">
 						  <h4 class="panel-title text-center ">
@@ -862,16 +898,25 @@ GROUP BY divisao.nome</pre></div>
 						  </h4>
 						</div>
 						<div id="Configuration1" class="panel-collapse collapse ">
-						    <div class="panel-body"><pre>SET search_path TO estufa;
+						    <div class="panel-body zoom"><pre><code style="color:#ff5050">SET</code> search_path <code style="color:#ff5050">TO</code> estufa;
 
-UPDATE mote
-SET    divisao_id = mote_old.divisao_id
-FROM   mote mote_old
-WHERE (mote.divisao_id, mote_old.divisao_id) IN ((2,3), (3,2));</pre>
+<code style="color:#ff5050">UPDATE</code> mote
+<code style="color:#ff5050">SET</code> divisao_id = mote_old.divisao_id
+<code style="color:#ff5050">FROM</code> mote mote_old
+     <code style="color:#ff5050">JOIN</code> sensor <code style="color:#ff5050">ON</code> sensor.mot_id = mote_old.num_mot
+<code style="color:#ff5050">WHERE</code> (mote.divisao_id, mote_old.divisao_id) <code style="color:#ff5050">IN</code> ((<code style="color:#cca300"><? echo $Mote1_Config ?></code>,<code style="color:#cca300"><? echo $Mote2_Config ?></code>), (<code style="color:#cca300"><? echo $Mote2_Config ?></code>,<code style="color:#cca300"><? echo $Mote1_Config ?></code>))
+<code style="color:#ff5050">RETURNING</code>  (<code style="color:#ff5050">SELECT</code> nome <code style="color:#ff5050">FROM</code> sensor <code style="color:#ff5050">WHERE</code> mot_id=mote_old.num_mot <code style="color:#ff5050">AND</code> nome <code style="color:#ff5050">LIKE</code> '<code style="color:#009933"><? echo $TipoSensor_Config ?>%</code>') <code style="color:#ff5050">AS</code> "<code style="color:#009933">Sensor Antigo</code>", 
+	   mote_old.num_mot <code style="color:#ff5050">AS</code> "<code style="color:#009933">Num. Mote Antigo</code>", 
+	   (<code style="color:#ff5050">SELECT</code> nome <code style="color:#ff5050">FROM</code> divisao <code style="color:#ff5050">WHERE</code> id_div=mote_old.divisao_id) <code style="color:#ff5050">AS</code> "<code style="color:#009933">Room Antigo</code>",
+	   (<code style="color:#ff5050">SELECT</code> nome <code style="color:#ff5050">FROM</code> sensor <code style="color:#ff5050">WHERE</code> mot_id=mote.num_mot <code style="color:#ff5050">AND</code> nome <code style="color:#ff5050">LIKE</code> '<code style="color:#009933"><? echo $TipoSensor_Config ?>%</code>') <code style="color:#ff5050">AS</code> "<code style="color:#009933">Sensor</code>",
+	   mote.num_mot <code style="color:#ff5050">AS</code> "<code style="color:#009933">Num. Mote</code>",
+	   (<code style="color:#ff5050">SELECT</code> nome <code style="color:#ff5050">FROM</code> divisao <code style="color:#ff5050">WHERE</code> id_div=mote.divisao_id) <code style="color:#ff5050">AS</code> "<code style="color:#009933">Room</code>" 
+</pre>
 						
 							</div>
 						</div>
 					  </div>
+					  <?php } else { ?>
 					  <div class="panel panel-default">
 						<div class="panel-heading ">
 						  <h4 class="panel-title text-center ">
@@ -880,16 +925,16 @@ WHERE (mote.divisao_id, mote_old.divisao_id) IN ((2,3), (3,2));</pre>
 						  </h4>
 						</div>
 						<div id="Configuration2" class="panel-collapse collapse">
-						  <div class="panel-body"><pre>SET search_path TO estufa;
+						  <div class="panel-body zoom"><pre><code style="color:#ff5050">SET</code> search_path <code style="color:#ff5050">TO</code> estufa;
 
-SELECT divisao.nome AS "Room", COUNT(DISTINCT sensor.mot_id) AS "Mote Count", COUNT(sensor.nome) AS "Sensor Count" 
-FROM estufa.sensor
-	JOIN estufa.mote ON num_mot=mot_id 
-	JOIN estufa.divisao ON divisao_id=id_div
-GROUP BY divisao.nome</pre></div>
+<code style="color:#ff5050">SELECT</code> divisao.nome <code style="color:#ff5050">AS</code> "<code style="color:#009933">Room</code>", <code style="color:#ff5050">COUNT</code>(DISTINCT sensor.mot_id) <code style="color:#ff5050">AS</code> "<code style="color:#009933">Mote Count</code>", <code style="color:#ff5050">COUNT</code>(sensor.nome) <code style="color:#ff5050">AS</code> "<code style="color:#009933">Sensor Count</code>"
+<code style="color:#ff5050">FROM</code> sensor
+	<code style="color:#ff5050">JOIN</code> mote <code style="color:#ff5050">ON</code> num_mot=mot_id 
+	<code style="color:#ff5050">JOIN</code> divisao <code style="color:#ff5050">ON</code> divisao_id=id_div
+<code style="color:#ff5050">GROUP BY</code> divisao.nome</pre></div>
 						</div>
 					  </div>
-					 
+					 <? } ?>
 					</div>
                 </div> <!-- /.row -->
 								
@@ -926,8 +971,10 @@ GROUP BY divisao.nome</pre></div>
 				</div><!-- /.row -->
             </div> <!-- /.container -->
         </div> <!-- /#config -->
-
-
+	<div class="content-section">
+		<hr class="style2" >
+	</div>
+				<!-- ****************RULES*********** -->
         <div class="content-section" id="rules"> <!-- start rules content section -->
             <div class="container">
                 <div class="row">
@@ -936,6 +983,7 @@ GROUP BY divisao.nome</pre></div>
                         <p>View and Edit <b><i>HAS</i></b> Control Rules</p>
                     </div> <!-- /.heading-section -->
 					<div class="panel-group" id="accordion">
+					<?php if ($QComplexity == "Easy") { ?>
 					  <div class="panel panel-default">
 						<div class="panel-heading">
 						  <h4 class="panel-title text-center ">
@@ -944,13 +992,22 @@ GROUP BY divisao.nome</pre></div>
 						  </h4>
 						</div>
 						<div id="Rules1" class="panel-collapse collapse ">
-						    <div class="panel-body"><pre>UPDATE estufa.regra_geral SET valor=14
- WHERE sensor_nome='hum2'
-RETURNING  regra_id AS "Rule", (SELECT nome FROM estufa.divisao WHERE id_div=(SELECT divisao_id FROM estufa.atuador WHERE nome=atuador_nome ))AS "Room", valor AS "Reference Value" ,sensor_nome AS "Sensor"</pre>
+						    <div class="panel-body zoom"><pre><code style="color:#ff5050">UPDATE</code> estufa.regra_geral <code style="color:#ff5050">SET</code> valor=<code style="color:#cca300"><? echo $Valor_rule ?></code>
+<code style="color:#ff5050">WHERE</code> sensor_nome='<code style="color:#009933"><? echo $Sensor_rule ?></code>'
+<code style="color:#ff5050">RETURNING</code>  regra_id <code style="color:#ff5050">AS</code> "<code style="color:#009933">Rule</code>", 
+	   (<code style="color:#ff5050">SELECT</code> nome FROM estufa.divisao <code style="color:#ff5050">
+	   WHERE</code> id_div=(<code style="color:#ff5050">SELECT</code> divisao_id 
+			 <code style="color:#ff5050">FROM</code> estufa.atuador 
+			 <code style="color:#ff5050">WHERE</code> nome=atuador_nome)
+	   )<code style="color:#ff5050">AS</code> "<code style="color:#009933">Room</code>",
+	   valor <code style="color:#ff5050">AS</code> "<code style="color:#009933">Reference Value</code>" ,
+	   sensor_nome <code style="color:#ff5050">AS</code> "<code style="color:#009933">Sensor</code>"
+</pre>
 						
 							</div>
 						</div>
 					  </div>
+					  <?php } else { ?>
 					  <div class="panel panel-default">
 						<div class="panel-heading ">
 						  <h4 class="panel-title text-center ">
@@ -959,15 +1016,15 @@ RETURNING  regra_id AS "Rule", (SELECT nome FROM estufa.divisao WHERE id_div=(SE
 						  </h4>
 						</div>
 						<div id="Rules2" class="panel-collapse collapse">
-						  <div class="panel-body"><pre>SELECT COUNT(divisao.nome) AS rules, divisao.nome AS room
-FROM estufa.regra_geral 
-	JOIN estufa.sensor ON estufa.regra_geral.sensor_nome= estufa.sensor.nome 
-	JOIN estufa.mote ON num_mot=mot_id 
-	JOIN estufa.divisao ON divisao_id=id_div 
-GROUP BY divisao.nome</pre></div>
+						  <div class="panel-body zoom"><pre><code style="color:#ff5050">SELECT COUNT</code>(divisao.nome) <code style="color:#ff5050">AS</code> rules, divisao.nome <code style="color:#ff5050">AS</code> room
+<code style="color:#ff5050">FROM</code> estufa.regra_geral 
+     <code style="color:#ff5050">JOIN</code> estufa.sensor <code style="color:#ff5050">ON</code> estufa.regra_geral.sensor_nome= estufa.sensor.nome 
+     <code style="color:#ff5050">JOIN</code> estufa.mote <code style="color:#ff5050">ON</code> num_mot=mot_id 
+     <code style="color:#ff5050">JOIN</code> estufa.divisao <code style="color:#ff5050">ON</code> divisao_id=id_div 
+<code style="color:#ff5050">GROUP BY</code> divisao.nome</pre></div>
 						</div>
 					  </div>
-					 
+					 <? } ?>
 					</div>
 				</div> <!-- /.row -->
 				<br><br><br>
@@ -1000,7 +1057,10 @@ GROUP BY divisao.nome</pre></div>
 				</div><!-- /.row -->
             </div> <!-- /.container -->
         </div> <!-- /#rules -->
-
+	<div class="content-section">
+		<hr class="style2" >
+	</div>
+		<!-- ****************ENERGY*********** -->
 		<div class="content-section" id="energy"> <!-- start energy content section -->
             <div class="container">
                 <div class="row">
@@ -1009,6 +1069,7 @@ GROUP BY divisao.nome</pre></div>
                         <p>Monitor Energy Consumption</p>
                     </div> <!-- /.heading-section -->
 					<div class="panel-group" id="accordion">
+					<?php if ($QComplexity == "Easy") { ?>
 					  <div class="panel panel-default">
 						<div class="panel-heading">
 						  <h4 class="panel-title text-center ">
@@ -1017,13 +1078,22 @@ GROUP BY divisao.nome</pre></div>
 						  </h4>
 						</div>
 						<div id="Energy1" class="panel-collapse collapse ">
-						    <div class="panel-body"><pre>SELECT tempo AS timestamp, valor AS measurement 
-FROM estufa.medi_sensor
+						    <div class="panel-body zoom"><pre><code style="color:#ff5050">SET</code> search_path <code style="color:#ff5050">TO</code> estufa;
+
+<code style="color:#ff5050">SELECT</code> (medi_sensor.valor/<code style="color:#cca300">3600</code>) *<code style="color:#cca300">220</code>*<code style="color:#cca300">1</code> <code style="color:#ff5050">AS</code> energy, tempo <code style="color:#ff5050">AS</code> timestamp
+<code style="color:#ff5050">FROM</code> medi_sensor
+    <code style="color:#ff5050">JOIN</code> sensor <code style="color:#ff5050">ON</code> medi_sensor.sensor_nome = sensor.nome
+    <code style="color:#ff5050">JOIN</code> mote <code style="color:#ff5050">ON</code> num_mot=mot_id 
+    <code style="color:#ff5050">JOIN</code> divisao <code style="color:#ff5050">ON</code> divisao_id=id_div
+<code style="color:#ff5050">WHERE</code> medi_sensor.sensor_nome <code style="color:#ff5050">LIKE</code> '<code style="color:#009933">corrente%</code>' <code style="color:#ff5050">AND</code> divisao.nome='<code style="color:#009933"><? echo $Room_Energy ?></code>' <code style="color:#ff5050">AND</code> tempo>'<code style="color:#009933"><? echo $TimestampInicialE_Energy ?></code></code>' <code style="color:#ff5050">AND</code> tempo<'<code style="color:#009933"><? echo $TimestampFinalE_Energy ?></code></code>'
+<code style="color:#ff5050">ORDER BY</code> tempo ASC
+
 </pre>
 						
 							</div>
 						</div>
 					  </div>
+					  <?php } else { ?>
 					  <div class="panel panel-default">
 						<div class="panel-heading ">
 						  <h4 class="panel-title text-center ">
@@ -1032,22 +1102,18 @@ FROM estufa.medi_sensor
 						  </h4>
 						</div>
 						<div id="Energy2" class="panel-collapse collapse">
-						  <div class="panel-body"><pre>
-CREATE TEMP TABLE tabletemp (
-    average DECIMAL(12,3),
-    sensor_nome VARCHAR(129),
-    room VARCHAR(100)
-) ;
+						  <div class="panel-body zoom"><pre><code style="color:#ff5050">SET</code> search_path <code style="color:#ff5050">TO</code> estufa;
 
-INSERT into tabletemp  
-	SELECT CAST(AVG (valor) AS DECIMAL(10,3)), sensor_nome ,(SELECT nome FROM estufa.divisao WHERE id_div=(SELECT mot_id FROM estufa.sensor WHERE nome=sensor_nome ))
-	FROM estufa.medi_sensor
-	GROUP BY sensor_nome;
-
-SELECT CAST(AVG(average) AS DECIMAL(10,3)) AS "average", room FROM tabletemp GROUP BY room ;</pre></div>
+<code style="color:#ff5050">SELECT SUM</code>((medi_sensor.valor/<code style="color:#cca300">3600</code>) *<code style="color:#cca300">220</code>*<code style="color:#cca300">1</code>*<code style="color:#cca300">0.1544</code>) <code style="color:#ff5050">AS</code> cost, divisao.nome <code style="color:#ff5050">AS</code> room
+<code style="color:#ff5050">FROM</code> medi_sensor
+    <code style="color:#ff5050">JOIN</code> sensor <code style="color:#ff5050">ON</code> medi_sensor.sensor_nome = sensor.nome
+    <code style="color:#ff5050">JOIN</code> mote <code style="color:#ff5050">ON</code> num_mot=mot_id 
+    <code style="color:#ff5050">JOIN</code> divisao <code style="color:#ff5050">ON</code> divisao_id=id_div
+<code style="color:#ff5050">WHERE</code> medi_sensor.sensor_nome <code style="color:#ff5050">LIKE</code> '<code style="color:#009933">corrente%</code>' <code style="color:#ff5050">AND</code> tempo>'<code style="color:#009933"><? echo $TimestampInicialM_Energy ?></code>' <code style="color:#ff5050">AND</code> tempo<'<code style="color:#009933"><? echo $TimestampFinalM_Energy ?></code>'
+<code style="color:#ff5050">GROUP BY</code> divisao.nome</pre></div>
 						</div>
 					  </div>
-					 
+					 <? } ?>
 					</div>
 				</div> <!-- /.row -->
 				
@@ -1062,9 +1128,9 @@ SELECT CAST(AVG(average) AS DECIMAL(10,3)) AS "average", room FROM tabletemp GRO
 				<br><br><br>
 				<p style="font-size: 20px;"><?php 
 				if($QComplexity=='Easy') {
-					echo '<b> <u>Room</u>: </b> '.$Room_Energy.'<br><b>  <u>Timestamp</u>:</b> '.$TimestampInicialE_Energy . ' -----  '.$TimestampFinalE_Energy;
+					echo '<b> <u>Room</u>: </b> '.$Room_Energy.'<br><b>  <u>Timestamp</u>:</b> '.$TimestampInicialE_Energy . " <strong>&nbsp;&nbsp;&nbsp;TO&nbsp;&nbsp;&nbsp;</strong> ".$TimestampFinalE_Energy;
 				}else if($QComplexity=='Medium'){
-					echo '<br><b>  <u>Timestamp</u>:</b> '.$TimestampInicialM_Energy . '  -----  '.$TimestampFinalM_Energy;
+					echo '<br><b>  <u>Timestamp</u>:</b> '.$TimestampInicialM_Energy . " <strong>&nbsp;&nbsp;&nbsp;TO&nbsp;&nbsp;&nbsp;</strong> ".$TimestampFinalM_Energy;
 				}
 				?></p>
 				<div class="row">
@@ -1082,7 +1148,9 @@ SELECT CAST(AVG(average) AS DECIMAL(10,3)) AS "average", room FROM tabletemp GRO
         </div> <!-- /#energy -->
 		
 		
-		
+		<div class="content-section">
+		<hr class="style2" >
+		</div>
 
 		<div class="content-section" id="other"> <!-- start other content section -->
 			<div class="container">
